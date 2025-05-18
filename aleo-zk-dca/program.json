@@ -1,0 +1,10 @@
+{
+    "program": "zk_dca.aleo",
+    "version": "0.1.0",
+    "description": "Privacy-preserving Dollar-Cost Averaging protocol using Arcane Finance's DEX",
+    "development": {
+        "private_key": "APrivateKey1zkpGKaJY47BXb6knSqmT3JZnBUEGBDFAWz2nMVSsjwYpJmm",
+        "view_key": "AViewKey1cxguxtKkjYnT9XgH5kWwNLMcEVqfCVSRh8jX58dQoJ4nQ",
+        "address": "aleo1rhgdu77hgyqd3xjj8ucu3jj9r2krwz6mnzyd80gncr5fxcwlh5rsvzp9px"
+    }
+} 

@@ -1,0 +1,29 @@
+# Aleo ZK-DCA Project Structure Rules
+
+# Project Directories
+/contracts - Aleo smart contracts
+/src/main - Main application code
+/resources - Static resources and configuration files
+/scripts - Deployment and utility scripts
+
+# Development Workflow Rules
+1. Always implement contracts in the /contracts directory
+2. Use the arcn_pool_v2_2_4.aleo program for DEX interactions
+3. Front-end components should be in /src/main
+4. Keep program logic separated by functionality
+5. Test scripts should start with "test_"
+6. Document all functions with clear comments
+7. Follow Aleo's privacy best practices
+
+# Nomenclature Rules
+- Contract names should be descriptive and end with .aleo
+- Use snake_case for variable and function names
+- Use camelCase for front-end components
+- Prefix private variables with "private_"
+
+# Implementation Order
+1. Define core data structures (records, mappings)
+2. Implement DCA setup functions
+3. Implement withdrawal functions
+4. Implement DEX integration
+5. Build front-end components 
