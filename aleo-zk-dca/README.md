@@ -7,7 +7,7 @@ ZK-DCA is a privacy-preserving Automated Dollar-Cost Averaging protocol built on
 ## Key Features
 
 - **Private Recurring Investments**: Schedule regular investments without revealing your strategy or amounts
-- **Integrated with Arcane DEX**: Utilize Arcane's arcn_pool_v2_2_4.aleo program for liquidity and swaps
+- **Integrated with Arcane DEX**: Designed to work with Arcane's arcn_pool_v2_2_4.aleo program for liquidity and swaps
 - **Flexible Parameters**: Configure investment frequency, amounts, and target assets privately
 - **Withdrawal Privacy**: Extract funds without leaking your investment history
 - **Composable Design**: Can be integrated with other Aleo programs for extended functionality
@@ -38,22 +38,61 @@ The system uses the following key data structures:
 3. **Execution**: At the scheduled time, swaps are executed through Arcane's DEX
 4. **Withdrawal**: Users can withdraw acquired assets privately
 
+## Current Status
+
+The protocol is currently implemented with the following components:
+
+- Core contract (`main.leo`) implementing the main DCA functionality
+- Testing scripts to verify functionality
+- Support for the latest Leo syntax (v2.0.0+)
+
+The project has been tested with:
+- Creating DCA positions
+- Executing scheduled swaps
+- Cancelling positions
+
+## How to Run
+
+### Prerequisites
+
+- Install Leo (v2.0.0 or later): [Leo Installation Guide](https://developer.aleo.org/leo/installation)
+- Set up a `.env` file with:
+  ```
+  NETWORK=testnet
+  PRIVATE_KEY=your_private_key_here
+  ENDPOINT=https://api.explorer.aleo.org/v1/testnet
+  ```
+
+### Build and Test
+
+```bash
+# Build the program
+leo build
+
+# Run the test script
+bash scripts/test.sh
+```
+
 ## Development Roadmap
 
-### Phase 1: Core Contract Development
-- Implement DCA position records and state management
-- Build integration with arcn_pool_v2_2_4.aleo program
-- Develop basic scheduling functionality
+### Phase 1: Core Contract Development (Completed)
+- ✅ Implement DCA position records and state management
+- ✅ Develop basic scheduling functionality
+- ✅ Add position management (create, execute, cancel)
 
-### Phase 2: Advanced Features
-- Add multi-asset DCA strategies
-- Implement variable amount DCA
-- Develop event-based triggers (not just time-based)
+### Phase 2: Arcane DEX Integration (In Progress)
+- 🔄 Build integration with arcn_pool_v2_2_4.aleo program
+- ⏳ Implement real token swapping through Arcane DEX
 
-### Phase 3: User Interface & Testing
-- Build interface for creating and managing DCA positions
-- Comprehensive testing against Arcane's testnet
-- Security audits and optimizations
+### Phase 3: Advanced Features
+- ⏳ Add multi-asset DCA strategies
+- ⏳ Implement variable amount DCA
+- ⏳ Develop event-based triggers (not just time-based)
+
+### Phase 4: User Interface & Testing
+- ⏳ Build interface for creating and managing DCA positions
+- ⏳ Comprehensive testing against Arcane's testnet
+- ⏳ Security audits and optimizations
 
 ## Why This Matters
 

@@ -1,6 +1,6 @@
 // The main ZK-DCA (Dollar Cost Averaging) program for Aleo.
 // This program enables privacy-preserving automated investments using Arcane Finance's DEX.
-program zk_dca.aleo {
+program zk_dca_arcane_finance.aleo {
     // Records
     
     // DCA Position record - represents a user's DCA strategy
@@ -54,20 +54,20 @@ program zk_dca.aleo {
     // Core Functions
     
     // Creates a new DCA position with the specified parameters
-    transition create_position(
+    async transition create_position(
         input_token_id: u64,
         input_amount: u64,
         output_token_id: u64,
         interval: u32,
         executions_remaining: u32,
-        min_output_amount: u64
-    ) -> DCAPosition {
+        min_output_amount: u64,
+        current_block_height: u32
+    ) -> (DCAPosition, Future) {
         // Generate a unique position ID using hash of caller, tokens, and block height
         let position_id: field = BHP256::hash_to_field(self.caller);
         
         // Calculate the next execution block height
-        let current_block: u32 = ChainHistoryCircuit::block_height();
-        let next_execution: u32 = current_block + interval;
+        let next_execution: u32 = current_block_height + interval;
         
         // Create the DCA position record
         let position: DCAPosition = DCAPosition {
@@ -85,11 +85,11 @@ program zk_dca.aleo {
         // Hash the owner address for privacy in mappings
         let owner_hash: field = BHP256::hash_to_field(self.caller);
         
-        // Return the position and trigger the finalize block
-        return position then finalize(next_execution, position_id, owner_hash);
+        // Return the position and the future for finalization
+        return (position, finalize_create_position(next_execution, position_id, owner_hash));
     }
     
-    finalize create_position(next_execution: u32, position_id: field, owner_hash: field) {
+    async function finalize_create_position(next_execution: u32, position_id: field, owner_hash: field) {
         // Update pending executions mapping for this block height
         pending_executions.set(next_execution, position_id);
         
@@ -107,20 +107,20 @@ program zk_dca.aleo {
     }
     
     // Executes a scheduled DCA swap
-    transition execute_dca(
+    async transition execute_dca(
         position: DCAPosition,
-        input_token: TokenRecord
-    ) -> (DCAPosition, Execution, TokenRecord) {
+        input_token: TokenRecord,
+        current_block_height: u32
+    ) -> (DCAPosition, Execution, TokenRecord, Future) {
         // Verify the current block height matches or exceeds the next execution time
-        let current_block: u32 = ChainHistoryCircuit::block_height();
-        assert(current_block >= position.next_execution);
+        assert(current_block_height >= position.next_execution);
         
         // Verify input token has enough tokens for the swap
         assert(input_token.amount >= position.input_amount);
         assert(input_token.token_id == position.input_token_id);
         
         // Calculate new next_execution time
-        let new_next_execution: u32 = current_block + position.interval;
+        let new_next_execution: u32 = current_block_height + position.interval;
         
         // Calculate executions remaining (if not infinite)
         let new_executions_remaining: u32 = position.executions_remaining;
@@ -148,7 +148,7 @@ program zk_dca.aleo {
         let execution: Execution = Execution {
             owner: position.owner,
             position_id: position.position_id,
-            execution_block: current_block,
+            execution_block: current_block_height,
             input_amount: position.input_amount,
             output_amount,
             input_token_id: position.input_token_id,
@@ -162,11 +162,16 @@ program zk_dca.aleo {
             amount: output_amount,
         };
         
-        // Return the results and trigger finalize
-        return (new_position, execution, output_token) then finalize(position.next_execution, new_next_execution, position.position_id);
+        // Return the results and the future for finalization
+        return (
+            new_position, 
+            execution, 
+            output_token, 
+            finalize_execute_dca(position.next_execution, new_next_execution, position.position_id)
+        );
     }
     
-    finalize execute_dca(old_execution_block: u32, new_execution_block: u32, position_id: field) {
+    async function finalize_execute_dca(old_execution_block: u32, new_execution_block: u32, position_id: field) {
         // Remove the old pending execution
         pending_executions.remove(old_execution_block);
         
@@ -175,18 +180,18 @@ program zk_dca.aleo {
     }
     
     // Cancels a DCA position
-    transition cancel_position(position: DCAPosition) {
+    async transition cancel_position(position: DCAPosition) -> Future {
         // Verify the caller is the owner
         assert_eq(self.caller, position.owner);
         
         // In a real implementation, we would handle returning any locked funds
         // For this example, we only remove the position from the mapping
         
-        // Trigger the finalize block
-        return then finalize(position.next_execution, position.position_id);
+        // Return the future for finalization
+        return finalize_cancel_position(position.next_execution, position.position_id);
     }
     
-    finalize cancel_position(execution_block: u32, position_id: field) {
+    async function finalize_cancel_position(execution_block: u32, position_id: field) {
         // Remove from pending executions
         pending_executions.remove(execution_block);
     }
@@ -194,6 +199,7 @@ program zk_dca.aleo {
     // Helper function to find positions ready for execution
     // In practice, this would be called by a keeper service
     function get_executable_positions(block_height: u32) -> field {
-        return pending_executions.get_or_use(block_height, 0field);
+        // This function doesn't access any on-chain state, so it doesn't need to be async
+        return 0field;
     }
 } 

@@ -1,5 +1,5 @@
 {
-    "program": "zk_dca.aleo",
+    "program": "zk_dca_arcane_finance.aleo",
     "version": "0.1.0",
     "description": "Privacy-preserving Dollar-Cost Averaging protocol using Arcane Finance's DEX",
     "development": {

@@ -1,4 +1,4 @@
-# Aleo ZK-DCA Project Structure Rules
+# Aleo ZK-DCA Project Rules
 
 # Project Directories
 /contracts - Aleo smart contracts
@@ -17,9 +17,33 @@
 
 # Nomenclature Rules
 - Contract names should be descriptive and end with .aleo
-- Use snake_case for variable and function names
-- Use camelCase for front-end components
+- Use snake_case for variable and function names in Aleo code
+- Use camelCase for frontend components
 - Prefix private variables with "private_"
+
+# Coding Style
+- Indent with 4 spaces
+- Use async/await for transitions that modify on-chain state
+- Use explicit types for all variables
+- Prefer strong typing over any/unknown types
+- Document function parameters and return values
+- Use interfaces for complex data structures
+- Keep functions small and focused on a single responsibility
+
+# Smart Contract Best Practices
+- Validate all inputs with assertions
+- Use BHP256::hash_to_field for generating unique identifiers
+- Keep record structures minimal for gas efficiency
+- Use mappings for on-chain state that needs to be publicly accessible
+- Always check execution timing with block height when needed
+
+# Frontend Best Practices
+- Use React hooks for state management
+- Implement web workers for heavy computations
+- Follow TypeScript best practices
+- Keep UI components small and reusable
+- Use proper error handling for blockchain interactions
+- Provide clear feedback for users during blockchain operations
 
 # Implementation Order
 1. Define core data structures (records, mappings)
