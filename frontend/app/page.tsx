@@ -9,6 +9,8 @@ import { createDCAPositionTransaction, cancelPositionTransaction, executeDCATran
 import { WalletNotConnectedError } from "@demox-labs/aleo-wallet-adapter-base";
 import AddressDisplay from "./components/AddressDisplay";
 import ANSLookup from "./components/ANSLookup";
+import BridgeInterface from "./components/BridgeInterface";
+import CrossChainDCA from "./components/CrossChainDCA";
 
 interface DCAPosition {
   id: string;
@@ -30,10 +32,10 @@ interface TokenPair {
 
 // Mock token pairs for interface
 const AVAILABLE_TOKENS: TokenPair[] = [
-  { id: 1, name: "Aleo Credits", symbol: "ALEO" },
-  { id: 2, name: "USDC", symbol: "USDC" },
-  { id: 3, name: "Wrapped Ethereum", symbol: "WETH" },
-  { id: 4, name: "Wrapped Bitcoin", symbol: "WBTC" }
+  { id: 1, name: "Aleo", symbol: "ALEO" },
+  { id: 2, name: "USDC", symbol: "vUSDC" },
+  { id: 3, name: "USDT", symbol: "vUSDT" },
+  { id: 4, name: "Ethereum", symbol: "vETH" }
 ];
 
 export default function Home() {
@@ -60,7 +62,7 @@ export default function Home() {
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
   const [isCanceling, setIsCanceling] = useState<boolean>(false);
   const [positions, setPositions] = useState<DCAPosition[]>([]);
-  const [activeTab, setActiveTab] = useState<'create' | 'positions' | 'tools'>('create');
+  const [activeTab, setActiveTab] = useState<'create' | 'positions' | 'cross-chain' | 'tools'>('create');
   const [logs, setLogs] = useState<string[]>([]);
   const [currentBlockHeight, setCurrentBlockHeight] = useState<number>(0);
   const [transactionInProgress, setTransactionInProgress] = useState<boolean>(false);
@@ -356,6 +358,12 @@ export default function Home() {
                 Your Positions
               </button>
               <button 
+                className={`${styles.tabButton} ${activeTab === 'cross-chain' ? styles.activeTab : ''}`}
+                onClick={() => setActiveTab('cross-chain')}
+              >
+                Cross-Chain DCA
+              </button>
+              <button 
                 className={`${styles.tabButton} ${activeTab === 'tools' ? styles.activeTab : ''}`}
                 onClick={() => setActiveTab('tools')}
               >
@@ -526,6 +534,13 @@ export default function Home() {
               </div>
             )}
 
+            {/* Cross-Chain DCA Tab */}
+            {activeTab === 'cross-chain' && (
+              <div className={styles.tabContent}>
+                <CrossChainDCA />
+              </div>
+            )}
+
             {/* Tools Tab Content */}
             {activeTab === 'tools' && (
               <div className={styles.tabContent}>
@@ -535,7 +550,8 @@ export default function Home() {
                 {/* ANS Lookup Component */}
                 <ANSLookup />
                 
-                {/* Additional tools can be added here */}
+                {/* Verulink Bridge Integration */}
+                <BridgeInterface />
               </div>
             )}
           </>

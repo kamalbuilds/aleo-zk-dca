@@ -1,8 +1,23 @@
-# ZK-DCA: Privacy-Preserving Dollar-Cost Averaging on Aleo
+# ZK-DCA: The Firs Privacy-Preserving Dollar-Cost Averaging on Aleo
 
 ## Project Overview
 
 ZK-DCA is a privacy-preserving Automated Dollar-Cost Averaging protocol built on Arcane Finance's DEX platform. It allows users to set up recurring, private investments into crypto assets while leveraging Arcane's liquidity pools, all with the privacy guarantees of Aleo's zero-knowledge technology.
+
+## Key Features
+
+- **Private Recurring Investments**: Schedule regular investments without revealing your strategy or amounts
+- **Integrated with Arcane DEX**: Utilize Arcane's arcn_pool_v2_2_4.aleo program for liquidity and swaps
+- **Flexible Parameters**: Configure investment frequency, amounts, and target assets privately
+- **Withdrawal Privacy**: Extract funds without leaking your investment history
+- **Cross-Chain Compatibility**: Bridge assets from Ethereum, Base, and Arbitrum via Verulink
+- **Human-Readable Addresses**: ANS integration for improved user experience
+- **Privacy-Preserving**: All operations maintain zero-knowledge properties
+
+## Demo Video 
+
+https://github.com/user-attachments/assets/aa80f30e-3d24-4d43-8f3b-e6df84e1b882
+
 
 ## Architecture Overview
 
@@ -60,16 +75,6 @@ flowchart TD
     AleoChain --> VeruLink
     VeruLink --> EVMChains
 ```
-
-## Key Features
-
-- **Private Recurring Investments**: Schedule regular investments without revealing your strategy or amounts
-- **Integrated with Arcane DEX**: Utilize Arcane's arcn_pool_v2_2_4.aleo program for liquidity and swaps
-- **Flexible Parameters**: Configure investment frequency, amounts, and target assets privately
-- **Withdrawal Privacy**: Extract funds without leaking your investment history
-- **Cross-Chain Compatibility**: Bridge assets from Ethereum, Base, and Arbitrum via Verulink
-- **Human-Readable Addresses**: ANS integration for improved user experience
-- **Privacy-Preserving**: All operations maintain zero-knowledge properties
 
 ## Ecosystem Integration
 
