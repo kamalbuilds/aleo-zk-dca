@@ -7,58 +7,58 @@ ZK-DCA is a privacy-preserving Automated Dollar-Cost Averaging protocol built on
 ## Architecture Overview
 
 ```mermaid
-architecture-beta
-    group frontend(computer)[Aleo ZK-DCA Frontend]
-        service webapp(desktop)[Web Application]
-        service wallet_adapter(database)[Wallet Adapter]
-        service dca_ui(desktop)[DCA Interface] in frontend
-        service ans_ui(desktop)[ANS Interface] in frontend
-        service bridge_ui(desktop)[Bridge Interface] in frontend
+flowchart TD
+    subgraph Frontend["Aleo ZK-DCA Frontend"]
+        WebApp("Web Application")
+        WalletAdapter("Wallet Adapter")
+        DCAUI("DCA Interface")
+        ANSUI("ANS Interface")
+        BridgeUI("Bridge Interface")
     end
-
-    group contracts(cloud)[Smart Contracts]
-        service zk_dca(server)[ZK-DCA Contract]
-        service arcane_adapter(server)[Arcane Adapter] in contracts
+    
+    subgraph Contracts["Smart Contracts"]
+        ZKDCA("ZK-DCA Contract")
+        ArcaneAdapter("Arcane Adapter")
     end
-
-    group aleo_ecosystem(cloud)[Aleo Ecosystem]
-        service aleo_chain(internet)[Aleo Blockchain]
-        service ans_service(database)[Aleo Name Service] in aleo_ecosystem
-        service arcane_dex(database)[Arcane DEX] in aleo_ecosystem
+    
+    subgraph Ecosystem["Aleo Ecosystem"]
+        AleoChain("Aleo Blockchain")
+        ANS("Aleo Name Service")
+        ArcaneDEX("Arcane DEX")
     end
-
-    group verulink(cloud)[Verulink Bridge]
-        service aleo_bridge(server)[Aleo Bridge Contract]
-        service evm_adapter(server)[EVM Adapter] in verulink
+    
+    subgraph VeruLink["Verulink Bridge"]
+        AleoBridge("Aleo Bridge Contract")
+        EVMAdapter("EVM Adapter")
     end
-
-    group evm_chains(cloud)[EVM Chains]
-        service ethereum(internet)[Ethereum (Sepolia)]
-        service base(internet)[Base (Sepolia)] in evm_chains
-        service arbitrum(internet)[Arbitrum (Sepolia)] in evm_chains
+    
+    subgraph EVMChains["EVM Chains"]
+        Ethereum("Ethereum (Sepolia)")
+        Base("Base (Sepolia)")
+        Arbitrum("Arbitrum (Sepolia)")
     end
-
-    webapp:R -- L:wallet_adapter
-    webapp:R -- L:dca_ui
-    webapp:R -- L:ans_ui
-    webapp:R -- L:bridge_ui
     
-    wallet_adapter:B -- T:aleo_chain
+    WebApp --> WalletAdapter
+    WebApp --> DCAUI
+    WebApp --> ANSUI
+    WebApp --> BridgeUI
     
-    dca_ui:B -- T:zk_dca
-    zk_dca:R -- L:arcane_adapter
-    arcane_adapter:B -- T:arcane_dex
+    WalletAdapter --> AleoChain
     
-    ans_ui:B -- T:ans_service
+    DCAUI --> ZKDCA
+    ZKDCA --> ArcaneAdapter
+    ArcaneAdapter --> ArcaneDEX
     
-    bridge_ui:B -- T:aleo_bridge
-    aleo_bridge:R -- L:evm_adapter
-    evm_adapter:R -- L:ethereum
-    evm_adapter:B -- T:base
-    evm_adapter:B -- T:arbitrum
+    ANSUI --> ANS
     
-    aleo_chain{group}:R --> L:verulink{group}
-    verulink{group}:R --> L:evm_chains{group}
+    BridgeUI --> AleoBridge
+    AleoBridge --> EVMAdapter
+    EVMAdapter --> Ethereum
+    EVMAdapter --> Base
+    EVMAdapter --> Arbitrum
+    
+    AleoChain --> VeruLink
+    VeruLink --> EVMChains
 ```
 
 ## Key Features
