@@ -7,6 +7,8 @@ import { useWallet } from "@demox-labs/aleo-wallet-adapter-react";
 import WalletButton from "./components/WalletButton";
 import { createDCAPositionTransaction, cancelPositionTransaction, executeDCATransaction, DCA_PROGRAM_ID } from "./utils/transactions";
 import { WalletNotConnectedError } from "@demox-labs/aleo-wallet-adapter-base";
+import AddressDisplay from "./components/AddressDisplay";
+import ANSLookup from "./components/ANSLookup";
 
 interface DCAPosition {
   id: string;
@@ -58,7 +60,7 @@ export default function Home() {
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
   const [isCanceling, setIsCanceling] = useState<boolean>(false);
   const [positions, setPositions] = useState<DCAPosition[]>([]);
-  const [activeTab, setActiveTab] = useState<'create' | 'positions'>('create');
+  const [activeTab, setActiveTab] = useState<'create' | 'positions' | 'tools'>('create');
   const [logs, setLogs] = useState<string[]>([]);
   const [currentBlockHeight, setCurrentBlockHeight] = useState<number>(0);
   const [transactionInProgress, setTransactionInProgress] = useState<boolean>(false);
@@ -353,6 +355,12 @@ export default function Home() {
               >
                 Your Positions
               </button>
+              <button 
+                className={`${styles.tabButton} ${activeTab === 'tools' ? styles.activeTab : ''}`}
+                onClick={() => setActiveTab('tools')}
+              >
+                Tools
+              </button>
             </div>
             
             {/* Create Position Form */}
@@ -475,6 +483,10 @@ export default function Home() {
                         </div>
                         <div className={styles.positionDetails}>
                           <div>
+                            <strong>Owner: </strong>
+                            {publicKey && <AddressDisplay address={publicKey} />}
+                          </div>
+                          <div>
                             <strong>Swapping: </strong>
                             {position.inputAmount} {formatToken(position.inputTokenId)} → {formatToken(position.outputTokenId)}
                           </div>
@@ -513,6 +525,19 @@ export default function Home() {
                 )}
               </div>
             )}
+
+            {/* Tools Tab Content */}
+            {activeTab === 'tools' && (
+              <div className={styles.tabContent}>
+                <h2>Aleo Tools</h2>
+                <p>Explore and interact with Aleo services</p>
+                
+                {/* ANS Lookup Component */}
+                <ANSLookup />
+                
+                {/* Additional tools can be added here */}
+              </div>
+            )}
           </>
         )}
       </div>
@@ -532,6 +557,21 @@ export default function Home() {
           )}
         </div>
       </div>
+
+      {/* Account Information */}
+      {connected && publicKey && (
+        <div className={styles.card}>
+          <h3>Account Information</h3>
+          <div className={styles.accountInfo}>
+            <div className={styles.accountField}>
+              <label>Address:</label>
+              <AddressDisplay address={publicKey} showAvatar={true} />
+            </div>
+            
+            {/* Keep other account information fields */}
+          </div>
+        </div>
+      )}
     </main>
   );
 }

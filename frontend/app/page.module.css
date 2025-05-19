@@ -385,3 +385,107 @@
     transform: rotate(0deg);
   }
 }
+
+/* ANS (Aleo Name Service) Styles */
+.addressDisplay {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.avatarContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar {
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.addressText {
+  font-family: var(--font-mono);
+  word-break: break-all;
+}
+
+.ansName {
+  font-weight: 600;
+  color: #0070f3;
+}
+
+.addressValue {
+  font-family: monospace;
+  color: #666;
+}
+
+.loading {
+  color: #999;
+  font-size: 0.875rem;
+}
+
+/* ANS Lookup Styles */
+.ansLookupContainer {
+  width: 100%;
+  padding: 1.5rem;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.lookupControls {
+  margin-top: 1rem;
+}
+
+.lookupTypeToggle {
+  display: flex;
+  margin-bottom: 1rem;
+  border-radius: 4px;
+  overflow: hidden;
+  width: fit-content;
+}
+
+.lookupTypeButton {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lookupTypeButton.activeButton {
+  background: #0070f3;
+  color: white;
+  border-color: #0070f3;
+}
+
+.lookupInputGroup {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.lookupError {
+  color: #d32f2f;
+  margin: 0.5rem 0;
+  font-size: 0.875rem;
+}
+
+.lookupResult {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #e3f2fd;
+  border-radius: 4px;
+}
+
+.resultValue {
+  font-family: monospace;
+  word-break: break-all;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: white;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
