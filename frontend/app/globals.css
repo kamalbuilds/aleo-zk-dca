@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "@demox-labs/aleo-wallet-adapter-reactui/dist/styles.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -77,6 +78,25 @@
   --sidebar-ring: oklch(0.705 0.015 286.067);
 }
 
+/* Custom reset for wallet button styles */
+.wallet-adapter-button {
+  background-color: #0070f3 !important;
+  border-color: transparent !important;
+  color: white !important;
+}
+
+.wallet-adapter-button:hover {
+  background-color: #0051b3 !important;
+}
+
+.wallet-adapter-button:not([disabled]):hover {
+  background-color: #0051b3 !important;
+}
+
+.wallet-adapter-modal-wrapper {
+  background-color: white !important;
+}
+
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -126,6 +146,10 @@ button:focus-visible {
     --callout-border-rgb: 108, 108, 108;
     --card-rgb: 100, 100, 100;
     --card-border-rgb: 200, 200, 200;
+  }
+  
+  .wallet-adapter-modal-wrapper {
+    background-color: #222 !important;
   }
 }
 

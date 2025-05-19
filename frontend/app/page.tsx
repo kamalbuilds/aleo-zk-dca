@@ -2,16 +2,15 @@
 
 import Image from "next/image";
 import styles from "./page.module.css";
-import { useCallback, useEffect, useRef, useState } from "react";
-
-interface UserAccount {
-  privateKey: string;
-  viewKey: string;
-  address: string;
-}
+import { useCallback, useEffect, useState } from "react";
+import { useWallet } from "@demox-labs/aleo-wallet-adapter-react";
+import WalletButton from "./components/WalletButton";
+import { createDCAPositionTransaction, cancelPositionTransaction, executeDCATransaction, DCA_PROGRAM_ID } from "./utils/transactions";
+import { WalletNotConnectedError } from "@demox-labs/aleo-wallet-adapter-base";
 
 interface DCAPosition {
   id: string;
+  positionRecord: string; // Full record string for transactions
   inputTokenId: number;
   inputAmount: number;
   outputTokenId: number;
@@ -36,9 +35,15 @@ const AVAILABLE_TOKENS: TokenPair[] = [
 ];
 
 export default function Home() {
-  // User account state
-  const [account, setAccount] = useState<UserAccount | null>(null);
-  const [currentBlockHeight, setCurrentBlockHeight] = useState<number | null>(null);
+  // Wallet state
+  const { 
+    publicKey, 
+    requestTransaction, 
+    requestRecordPlaintexts,
+    connected,
+    connecting,
+    disconnecting
+  } = useWallet();
   
   // Form state
   const [inputToken, setInputToken] = useState<number>(1); // Default to ALEO
@@ -50,135 +55,249 @@ export default function Home() {
   
   // UI state
   const [isCreatingPosition, setIsCreatingPosition] = useState<boolean>(false);
+  const [isExecuting, setIsExecuting] = useState<boolean>(false);
+  const [isCanceling, setIsCanceling] = useState<boolean>(false);
   const [positions, setPositions] = useState<DCAPosition[]>([]);
   const [activeTab, setActiveTab] = useState<'create' | 'positions'>('create');
   const [logs, setLogs] = useState<string[]>([]);
+  const [currentBlockHeight, setCurrentBlockHeight] = useState<number>(0);
+  const [transactionInProgress, setTransactionInProgress] = useState<boolean>(false);
   
-  // Setup worker
-  const workerRef = useRef<Worker>();
-
   // Helper to add log entries
   const addLog = useCallback((message: string) => {
     setLogs(prevLogs => [...prevLogs, `[${new Date().toISOString()}] ${message}`]);
   }, []);
 
-  // Setup worker communication
+  // Fetch records when connected
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      workerRef.current = new Worker(new URL("worker.ts", import.meta.url));
-      workerRef.current.onmessage = (event) => {
-        const { type, result } = event.data;
-        
-        // Add to logs
-        addLog(`Received ${type} response`);
-        
-        if (type === "createAccount") {
-          setAccount(result);
-          addLog(`Created account: ${result.address.slice(0, 10)}...`);
-        } 
-        else if (type === "getBlockHeight") {
-          if (result.success) {
-            setCurrentBlockHeight(result.blockHeight);
-            addLog(`Current block height: ${result.blockHeight}`);
-          } else {
-            addLog(`Error getting block height: ${result.error}`);
-          }
-        }
-        else if (type === "createDCAPosition") {
-          setIsCreatingPosition(false);
-          if (result.success) {
-            addLog(`Created DCA position successfully!`);
-            // In a real app, you would add the new position to the list
-            const newPosition: DCAPosition = {
-              id: Math.random().toString(36).substring(2, 9), // Mock ID
-              inputTokenId: Number(inputToken),
-              inputAmount: Number(inputAmount),
-              outputTokenId: Number(outputToken),
-              interval: Number(interval),
-              executionsRemaining: Number(executionsRemaining),
-              minOutputAmount: Number(minOutputAmount),
-              nextExecution: (currentBlockHeight || 0) + Number(interval)
-            };
-            setPositions([...positions, newPosition]);
-          } else {
-            addLog(`Error creating position: ${result.error}`);
-          }
-        }
-        else if (type === "executeDCA") {
-          if (result.success) {
-            addLog(`Executed DCA position successfully!`);
-            // Update position in a real app
-          } else {
-            addLog(`Error executing position: ${result.error}`);
-          }
-        }
-        else if (type === "cancelPosition") {
-          if (result.success) {
-            addLog(`Cancelled position successfully!`);
-            // Remove position in a real app
-          } else {
-            addLog(`Error cancelling position: ${result.error}`);
-          }
-        }
-      };
-      
-      return () => {
-        workerRef.current?.terminate();
-      };
+    if (connected && !connecting && !disconnecting) {
+      addLog(`Wallet connected: ${publicKey}`);
+      fetchRecords();
+      fetchCurrentBlockHeight();
     }
-  }, [inputToken, outputToken, inputAmount, interval, executionsRemaining, minOutputAmount, positions, currentBlockHeight, addLog]);
+  }, [connected, connecting, disconnecting, publicKey]);
 
-  // Poll for current block height
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const pollBlockHeight = () => {
-        workerRef.current?.postMessage({ type: "getBlockHeight" });
-      };
-      
-      // Poll immediately
-      pollBlockHeight();
-      
-      // Then poll every 30 seconds
-      const intervalId = setInterval(pollBlockHeight, 30000);
-      
-      return () => clearInterval(intervalId);
+  // Fetch DCA positions from wallet records
+  const fetchRecords = async () => {
+    if (!connected || !requestRecordPlaintexts) {
+      return;
     }
-  }, []);
 
-  // Generate an Aleo account
-  const generateAccount = async () => {
-    addLog("Generating new Aleo account...");
-    workerRef.current?.postMessage({ type: "createAccount" });
+    try {
+      addLog("Fetching DCA position records...");
+      const records = await requestRecordPlaintexts(DCA_PROGRAM_ID);
+      
+      // Filter for DCAPosition records
+      const positionRecords = records.filter(record => 
+        record.plaintext.includes('DCAPosition') && 
+        !record.spent
+      );
+      
+      if (positionRecords.length > 0) {
+        addLog(`Found ${positionRecords.length} active DCA positions`);
+        
+        // Parse records and update state
+        const parsedPositions = positionRecords.map((record, index) => {
+          // In a real implementation, you would parse the record structure
+          // This is a simplified example that extracts values from the record plaintext
+          
+          // Mock parsing (in real implementation, parse the actual record)
+          const plaintext = record.plaintext;
+          const extractValue = (key: string) => {
+            const regex = new RegExp(`${key}:\\s*(\\d+)\\w*\\.`);
+            const match = plaintext.match(regex);
+            return match ? parseInt(match[1]) : 0;
+          };
+          
+          const positionId = `position-${index}-${Date.now()}`;
+          const inputTokenId = extractValue("input_token_id");
+          const inputAmount = extractValue("input_amount");
+          const outputTokenId = extractValue("output_token_id");
+          const interval = extractValue("interval");
+          const nextExecution = extractValue("next_execution");
+          const executionsRemaining = extractValue("executions_remaining");
+          const minOutputAmount = extractValue("min_output_amount");
+          
+          return {
+            id: positionId,
+            positionRecord: record.plaintext,
+            inputTokenId,
+            inputAmount, 
+            outputTokenId,
+            interval,
+            executionsRemaining,
+            minOutputAmount,
+            nextExecution
+          };
+        });
+        
+        setPositions(parsedPositions);
+      } else {
+        addLog("No active DCA positions found");
+      }
+    } catch (error: any) {
+      addLog(`Error fetching records: ${error.message}`);
+    }
+  };
+
+  // Fetch current block height (in a real implementation)
+  const fetchCurrentBlockHeight = async () => {
+    try {
+      // This is a mock - in a real implementation you would:
+      // 1. Use an Aleo API/SDK to get the current block height
+      // 2. Or have a backend service provide this information
+      
+      // Mock block height (increments on each fetch for demo)
+      setCurrentBlockHeight(prev => prev + 10);
+      addLog(`Current block height: ${currentBlockHeight + 10}`);
+    } catch (error: any) {
+      addLog(`Error fetching block height: ${error.message}`);
+    }
   };
 
   // Create a new DCA position
   const createDCAPosition = async () => {
-    if (!account) {
-      addLog("Please create an account first");
+    if (!publicKey) {
+      addLog("Please connect your wallet first");
       return;
     }
 
-    if (!currentBlockHeight) {
-      addLog("Waiting for block height...");
+    if (!requestTransaction) {
+      addLog("Wallet does not support transactions");
       return;
     }
     
     setIsCreatingPosition(true);
     addLog("Creating DCA position...");
     
-    workerRef.current?.postMessage({ 
-      type: "createDCAPosition", 
-      params: {
-        privateKey: account.privateKey,
+    try {
+      setTransactionInProgress(true);
+      
+      const transaction = createDCAPositionTransaction(
+        publicKey,
+        Number(inputToken),
+        Number(inputAmount),
+        Number(outputToken),
+        Number(interval),
+        Number(executionsRemaining),
+        Number(minOutputAmount),
+        currentBlockHeight
+      );
+      
+      const txId = await requestTransaction(transaction);
+      
+      addLog(`DCA position created! Transaction ID: ${txId}`);
+      
+      // In a real application, you would wait for the transaction to be confirmed
+      // and then fetch the updated records
+      
+      // For demo purposes, we'll create a mock position
+      const newPosition: DCAPosition = {
+        id: `position-${Date.now()}`,
+        positionRecord: "mock_position_record", // This would be the actual record in a real implementation
         inputTokenId: Number(inputToken),
         inputAmount: Number(inputAmount),
         outputTokenId: Number(outputToken),
         interval: Number(interval),
         executionsRemaining: Number(executionsRemaining),
         minOutputAmount: Number(minOutputAmount),
-        blockHeight: currentBlockHeight
-      }
-    });
+        nextExecution: currentBlockHeight + Number(interval)
+      };
+      
+      setPositions([...positions, newPosition]);
+      
+      // Switch to positions tab
+      setActiveTab('positions');
+    } catch (error: any) {
+      addLog(`Error creating position: ${error.message}`);
+    } finally {
+      setIsCreatingPosition(false);
+      setTransactionInProgress(false);
+    }
+  };
+
+  // Execute a DCA position
+  const executeDCASwap = async (position: DCAPosition) => {
+    if (!publicKey) throw new WalletNotConnectedError();
+    if (!requestTransaction) {
+      addLog("Wallet does not support transactions");
+      return;
+    }
+    
+    setIsExecuting(true);
+    addLog(`Executing DCA position ${position.id}...`);
+    
+    try {
+      setTransactionInProgress(true);
+      
+      // In a real implementation, you would have the token record to use
+      // For demo purposes, we're using a placeholder
+      const mockTokenRecord = "mock_token_record";
+      
+      const transaction = executeDCATransaction(
+        publicKey,
+        position.positionRecord,
+        mockTokenRecord,
+        currentBlockHeight
+      );
+      
+      const txId = await requestTransaction(transaction);
+      
+      addLog(`DCA swap executed! Transaction ID: ${txId}`);
+      
+      // Update position in the UI
+      const updatedPositions = positions.map(p => {
+        if (p.id === position.id) {
+          return {
+            ...p,
+            executionsRemaining: p.executionsRemaining > 0 ? p.executionsRemaining - 1 : 0,
+            nextExecution: currentBlockHeight + p.interval
+          };
+        }
+        return p;
+      });
+      
+      setPositions(updatedPositions);
+    } catch (error: any) {
+      addLog(`Error executing swap: ${error.message}`);
+    } finally {
+      setIsExecuting(false);
+      setTransactionInProgress(false);
+    }
+  };
+
+  // Cancel a DCA position
+  const cancelPosition = async (position: DCAPosition) => {
+    if (!publicKey) throw new WalletNotConnectedError();
+    if (!requestTransaction) {
+      addLog("Wallet does not support transactions");
+      return;
+    }
+    
+    setIsCanceling(true);
+    addLog(`Cancelling DCA position ${position.id}...`);
+    
+    try {
+      setTransactionInProgress(true);
+      
+      const transaction = cancelPositionTransaction(
+        publicKey,
+        position.positionRecord
+      );
+      
+      const txId = await requestTransaction(transaction);
+      
+      addLog(`DCA position cancelled! Transaction ID: ${txId}`);
+      
+      // Remove position from the UI
+      const updatedPositions = positions.filter(p => p.id !== position.id);
+      setPositions(updatedPositions);
+    } catch (error: any) {
+      addLog(`Error cancelling position: ${error.message}`);
+    } finally {
+      setIsCanceling(false);
+      setTransactionInProgress(false);
+    }
   };
 
   // Format a token name with symbol
@@ -189,6 +308,10 @@ export default function Home() {
 
   return (
     <main className={styles.main}>
+      <div className={styles.walletButtonContainer}>
+        <WalletButton />
+      </div>
+      
       <div className={styles.description}>
         <h1 className={styles.title}>ZK-DCA: Privacy-Preserving Dollar-Cost Averaging</h1>
         <p className={styles.subtitle}>
@@ -206,191 +329,191 @@ export default function Home() {
           priority
         />
       </div>
-
-      {/* Account Section */}
-      <div className={styles.card}>
-        <h2>Your Aleo Account</h2>
-        {!account ? (
-          <button onClick={generateAccount} className={styles.button}>
-            Generate Account
-          </button>
-        ) : (
-          <div className={styles.accountInfo}>
-            <div className={styles.accountField}>
-              <strong>Address:</strong> 
-              <span className={styles.ellipsis}>{account.address}</span>
-            </div>
-            <div className={styles.accountField}>
-              <strong>View Key:</strong> 
-              <span className={styles.ellipsis}>{account.viewKey}</span>
-            </div>
-            <div className={styles.accountField}>
-              <strong>Private Key:</strong> 
-              <span className={styles.ellipsis}>{account.privateKey}</span>
-            </div>
-            <div className={styles.warning}>
-              ⚠️ In a real app, NEVER display the private key! This is for demonstration only.
-            </div>
-          </div>
-        )}
-      </div>
       
       {/* Main DCA Interface */}
       <div className={styles.mainContent}>
-        {/* Tabs */}
-        <div className={styles.tabs}>
-          <button 
-            className={`${styles.tabButton} ${activeTab === 'create' ? styles.activeTab : ''}`}
-            onClick={() => setActiveTab('create')}
-          >
-            Create Position
-          </button>
-          <button 
-            className={`${styles.tabButton} ${activeTab === 'positions' ? styles.activeTab : ''}`}
-            onClick={() => setActiveTab('positions')}
-          >
-            Your Positions
-          </button>
-        </div>
-        
-        {/* Create Position Form */}
-        {activeTab === 'create' && (
-          <div className={styles.tabContent}>
-            <h2>Create DCA Position</h2>
-            <p>Current Block Height: {currentBlockHeight || 'Loading...'}</p>
-            
-            <div className={styles.formGroup}>
-              <label>Input Token:</label>
-              <select 
-                value={inputToken} 
-                onChange={(e) => setInputToken(Number(e.target.value))}
-                className={styles.select}
-              >
-                {AVAILABLE_TOKENS.map(token => (
-                  <option key={token.id} value={token.id}>
-                    {token.name} ({token.symbol})
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div className={styles.formGroup}>
-              <label>Output Token:</label>
-              <select 
-                value={outputToken} 
-                onChange={(e) => setOutputToken(Number(e.target.value))}
-                className={styles.select}
-              >
-                {AVAILABLE_TOKENS.map(token => (
-                  <option key={token.id} value={token.id}>
-                    {token.name} ({token.symbol})
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div className={styles.formGroup}>
-              <label>Input Amount:</label>
-              <input 
-                type="number" 
-                value={inputAmount} 
-                onChange={(e) => setInputAmount(e.target.value)}
-                className={styles.input}
-                min="1"
-              />
-            </div>
-            
-            <div className={styles.formGroup}>
-              <label>Execution Interval (blocks):</label>
-              <input 
-                type="number" 
-                value={interval} 
-                onChange={(e) => setInterval(e.target.value)}
-                className={styles.input}
-                min="1"
-              />
-            </div>
-            
-            <div className={styles.formGroup}>
-              <label>Executions Remaining:</label>
-              <input 
-                type="number" 
-                value={executionsRemaining} 
-                onChange={(e) => setExecutionsRemaining(e.target.value)}
-                className={styles.input}
-                min="1"
-              />
-            </div>
-            
-            <div className={styles.formGroup}>
-              <label>Minimum Output Amount:</label>
-              <input 
-                type="number" 
-                value={minOutputAmount} 
-                onChange={(e) => setMinOutputAmount(e.target.value)}
-                className={styles.input}
-                min="1"
-              />
-            </div>
-            
-            <button 
-              onClick={createDCAPosition} 
-              disabled={!account || isCreatingPosition}
-              className={styles.button}
-            >
-              {isCreatingPosition 
-                ? 'Creating Position...' 
-                : 'Create DCA Position'
-              }
-            </button>
+        {!connected ? (
+          <div className={styles.connectWalletPrompt}>
+            <h2>Connect Your Wallet</h2>
+            <p>Please connect an Aleo wallet to get started</p>
           </div>
-        )}
-        
-        {/* Positions List */}
-        {activeTab === 'positions' && (
-          <div className={styles.tabContent}>
-            <h2>Your DCA Positions</h2>
+        ) : (
+          <>
+            {/* Tabs */}
+            <div className={styles.tabs}>
+              <button 
+                className={`${styles.tabButton} ${activeTab === 'create' ? styles.activeTab : ''}`}
+                onClick={() => setActiveTab('create')}
+              >
+                Create Position
+              </button>
+              <button 
+                className={`${styles.tabButton} ${activeTab === 'positions' ? styles.activeTab : ''}`}
+                onClick={() => setActiveTab('positions')}
+              >
+                Your Positions
+              </button>
+            </div>
             
-            {positions.length === 0 ? (
-              <p>No positions yet. Create your first DCA position!</p>
-            ) : (
-              <div className={styles.positionsList}>
-                {positions.map(position => (
-                  <div key={position.id} className={styles.positionCard}>
-                    <div className={styles.positionHeader}>
-                      <strong>Position ID: </strong> {position.id}
-                    </div>
-                    <div className={styles.positionDetails}>
-                      <div>
-                        <strong>Swapping: </strong>
-                        {position.inputAmount} {formatToken(position.inputTokenId)} → {formatToken(position.outputTokenId)}
-                      </div>
-                      <div>
-                        <strong>Interval: </strong>
-                        Every {position.interval} blocks
-                      </div>
-                      <div>
-                        <strong>Remaining: </strong>
-                        {position.executionsRemaining} executions
-                      </div>
-                      <div>
-                        <strong>Next Execution: </strong>
-                        Block {position.nextExecution}
-                      </div>
-                    </div>
-                    <div className={styles.positionActions}>
-                      <button className={styles.actionButton}>
-                        Execute Now
-                      </button>
-                      <button className={styles.actionButton}>
-                        Cancel Position
-                      </button>
-                    </div>
-                  </div>
-                ))}
+            {/* Create Position Form */}
+            {activeTab === 'create' && (
+              <div className={styles.tabContent}>
+                <h2>Create DCA Position</h2>
+                <p>Current Block Height: {currentBlockHeight}</p>
+                
+                <div className={styles.formGroup}>
+                  <label>Input Token:</label>
+                  <select 
+                    value={inputToken} 
+                    onChange={(e) => setInputToken(Number(e.target.value))}
+                    className={styles.select}
+                    disabled={transactionInProgress}
+                  >
+                    {AVAILABLE_TOKENS.map(token => (
+                      <option key={token.id} value={token.id}>
+                        {token.name} ({token.symbol})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className={styles.formGroup}>
+                  <label>Output Token:</label>
+                  <select 
+                    value={outputToken} 
+                    onChange={(e) => setOutputToken(Number(e.target.value))}
+                    className={styles.select}
+                    disabled={transactionInProgress}
+                  >
+                    {AVAILABLE_TOKENS.map(token => (
+                      <option key={token.id} value={token.id}>
+                        {token.name} ({token.symbol})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className={styles.formGroup}>
+                  <label>Input Amount:</label>
+                  <input 
+                    type="number" 
+                    value={inputAmount} 
+                    onChange={(e) => setInputAmount(e.target.value)}
+                    className={styles.input}
+                    min="1"
+                    disabled={transactionInProgress}
+                  />
+                </div>
+                
+                <div className={styles.formGroup}>
+                  <label>Execution Interval (blocks):</label>
+                  <input 
+                    type="number" 
+                    value={interval} 
+                    onChange={(e) => setInterval(e.target.value)}
+                    className={styles.input}
+                    min="1"
+                    disabled={transactionInProgress}
+                  />
+                </div>
+                
+                <div className={styles.formGroup}>
+                  <label>Executions Remaining:</label>
+                  <input 
+                    type="number" 
+                    value={executionsRemaining} 
+                    onChange={(e) => setExecutionsRemaining(e.target.value)}
+                    className={styles.input}
+                    min="1"
+                    disabled={transactionInProgress}
+                  />
+                </div>
+                
+                <div className={styles.formGroup}>
+                  <label>Minimum Output Amount:</label>
+                  <input 
+                    type="number" 
+                    value={minOutputAmount} 
+                    onChange={(e) => setMinOutputAmount(e.target.value)}
+                    className={styles.input}
+                    min="1"
+                    disabled={transactionInProgress}
+                  />
+                </div>
+                
+                <button 
+                  onClick={createDCAPosition} 
+                  disabled={!connected || isCreatingPosition || transactionInProgress}
+                  className={styles.button}
+                >
+                  {isCreatingPosition 
+                    ? 'Creating Position...' 
+                    : 'Create DCA Position'
+                  }
+                </button>
               </div>
             )}
-          </div>
+            
+            {/* Positions List */}
+            {activeTab === 'positions' && (
+              <div className={styles.tabContent}>
+                <h2>Your DCA Positions</h2>
+                <div className={styles.positionActions}>
+                  <button onClick={fetchRecords} className={styles.refreshButton} disabled={transactionInProgress}>
+                    Refresh Positions
+                  </button>
+                </div>
+                
+                {positions.length === 0 ? (
+                  <p>No positions yet. Create your first DCA position!</p>
+                ) : (
+                  <div className={styles.positionsList}>
+                    {positions.map(position => (
+                      <div key={position.id} className={styles.positionCard}>
+                        <div className={styles.positionHeader}>
+                          <strong>Position ID: </strong> {position.id}
+                        </div>
+                        <div className={styles.positionDetails}>
+                          <div>
+                            <strong>Swapping: </strong>
+                            {position.inputAmount} {formatToken(position.inputTokenId)} → {formatToken(position.outputTokenId)}
+                          </div>
+                          <div>
+                            <strong>Interval: </strong>
+                            Every {position.interval} blocks
+                          </div>
+                          <div>
+                            <strong>Remaining: </strong>
+                            {position.executionsRemaining} executions
+                          </div>
+                          <div>
+                            <strong>Next Execution: </strong>
+                            Block {position.nextExecution}
+                          </div>
+                        </div>
+                        <div className={styles.positionActions}>
+                          <button 
+                            className={styles.actionButton}
+                            onClick={() => executeDCASwap(position)}
+                            disabled={isExecuting || isCanceling || transactionInProgress}
+                          >
+                            {isExecuting ? 'Executing...' : 'Execute Now'}
+                          </button>
+                          <button 
+                            className={styles.actionButton}
+                            onClick={() => cancelPosition(position)}
+                            disabled={isExecuting || isCanceling || transactionInProgress}
+                          >
+                            {isCanceling ? 'Canceling...' : 'Cancel Position'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
       
